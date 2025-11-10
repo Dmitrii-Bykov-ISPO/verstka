@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart'; // подключаем flutter ui-библиотеку, без неё виджеты и темы недоступны
 import 'package:shared_preferences/shared_preferences.dart'; // подключаем хранилище простых настроек на устройстве (key-value)
 import 'package:supabase_flutter/supabase_flutter.dart'; // подключаем клиент supabase для работы с бэкендом, базой и хранилищем
+import 'package:go_router/go_router.dart'; // для варианта 3 (GoRouter)
+
 // supabase: базовая конфигурация и клиент
 const String supabaseUrl = 'https://azccbwduobbulgdgucjj.supabase.co'; // const потому что это неизменяемый адрес проекта supabase, он известен на этапе компиляции
 const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6Y2Nid2R1b2JidWxnZGd1Y2pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4MDUyNzgsImV4cCI6MjA3NTM4MTI3OH0.x9jEzJnHg_fiX0dFXpWD70kKH848QZC4uELlMpL1yos';
@@ -228,7 +230,14 @@ class _MyAppState extends State<MyApp> { // состояние приложен�
           },
           themeController: _theme, // передаём контроллер темы для быстрого переключения в ui
         ),
-        routes: {'/photo': (_) => const PhotoViewScreen()},  // регистрируем именованный маршрут на экран просмотра фото
+        routes: {
+          '/photo': (_) => const PhotoViewScreen(), // регистрируем именованный маршрут на экран просмотра фото
+
+          // ===== Лабораторная: Named Routes в реальном приложении =====
+          '/settings': (context) => const SettingsScreen(), // экран настроек, открываем через pushNamed
+          '/about': (context) => const AboutAppScreen(), // экран "О приложении", тоже через pushNamed
+        },
+
       ),
     );
   }
@@ -358,8 +367,72 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
       children: [// элементы списка
         Row(children: const [// ряд с двумя информационными карточками
           Expanded(child: InfoCard(icon: Icons.notifications, iconColor: Colors.yellow, title: '10 новостей')),// карточка "новости"
+
           Expanded(child: InfoCard(icon: Icons.event, iconColor: Colors.green, title: '15 событий')),// карточка "события"
         ]),
+        // ===== Лабораторная: демонстрация трёх способов навигации в реальном приложении =====
+        Container( // контейнер-карточка в стиле приложения
+          padding: const EdgeInsets.all(16), // внутренние отступы
+          margin: const EdgeInsets.symmetric(horizontal: 8), // внешний отступ по бокам
+          decoration: BoxDecoration( // оформление блока
+            color: Theme.of(context).cardColor, // фон берём из текущей темы
+            borderRadius: BorderRadius.circular(16), // скругляем углы как в InfoCard/PostCard
+          ),
+          child: Column( // вертикальное расположение содержимого
+            crossAxisAlignment: CrossAxisAlignment.start, // выравниваем текст по левому краю
+            children: [
+              const Text( // заголовок блока
+                'Лабораторная: навигация внутри проекта',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8), // вертикальный отступ
+              const Text( // пояснение к блоку
+                'Ниже три кнопки показывают три разных подхода навигации:',
+              ),
+              const SizedBox(height: 12), // отступ
+              Wrap( // используем Wrap, чтобы кнопки красиво переносились по строкам
+                spacing: 8, // горизонтальный отступ между кнопками
+                runSpacing: 8, // вертикальный отступ между строками кнопок
+                children: [
+                  ElevatedButton( // КНОПКА 1: прямой Navigator.push/pop
+                    onPressed: () {
+                      // ВАРИАНТ 1: прямой переход через MaterialPageRoute
+                      // Открываем экран настроек темы/пользователя как пример
+                      Navigator.of(context).push(
+                        MaterialPageRoute( // создаём маршрут "на лету"
+                          builder: (_) => const SettingsScreen(), // целевой экран
+                        ),
+                      );
+                    },
+                    child: const Text('1) Navigator.push/pop'),
+                  ),
+                  ElevatedButton( // КНОПКА 2: Named Routes
+                    onPressed: () {
+                      // ВАРИАНТ 2: переход по именованному маршруту
+                      // Маршрут '/about' зарегистрирован в MaterialApp.routes
+                      Navigator.of(context).pushNamed('/about');
+                    },
+                    child: const Text('2) Named Routes'),
+                  ),
+                  ElevatedButton( // КНОПКА 3: GoRouter
+                    onPressed: () {
+                      // ВАРИАНТ 3: GoRouter как под-модуль
+                      // Открываем отдельный экран, внутри которого навигация уже на GoRouter
+                      Navigator.of(context).push(
+                        MaterialPageRoute( // обычный Navigator твоего приложения
+                          builder: (_) => const RouterDemoShell(), // внутри — GoRouter
+                        ),
+                      );
+                    },
+                    child: const Text('3) GoRouter'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16), // отступ перед следующим контентом
+
         const SizedBox(height: 16), // отступ
         ...posts.expand((p) sync* { // разворачиваем посты в последовательность виджетов: карточка поста + отступ
           yield PostCard.buildFromData(// создаём карточку поста из модели
@@ -624,3 +697,71 @@ class PhotoViewScreen extends StatelessWidget { // экран просмотра
     );
   }
 }
+// ============================================================================
+// ЭКРАН НАСТРОЕК — демонстрация прямого Navigator.push / pop (способ 1)
+// ============================================================================
+
+class SettingsScreen extends StatelessWidget { // экран настроек, открываем напрямую через MaterialPageRoute (Navigator.push)
+  const SettingsScreen({super.key}); // конструктор, super.key пробрасываем в базовый StatelessWidget
+
+  @override
+  Widget build(BuildContext context) => Scaffold( // Scaffold — стандартный каркас экрана
+    appBar: AppBar( // верхняя панель приложения
+      title: const Text('Настройки (Navigator.push)'), // заголовок, подчёркиваем способ навигации
+    ),
+    body: Center( // центрируем содержимое по экрану
+      child: Column( // вертикальная колонка элементов
+        mainAxisSize: MainAxisSize.min, // колонка занимает минимум по высоте
+        children: [
+          const Text(
+            'Этот экран открыт через прямой Navigator.push(MaterialPageRoute).',
+          ), // пояснение к лабораторной
+          const SizedBox(height: 16), // отступ
+          const Text(
+            'Здесь логично показывать настройки темы, профиля и т.п.',
+          ), // привязка к реальному приложению
+          const SizedBox(height: 24), // отступ
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context), // возвращаемся назад (pop с текущего экрана)
+            child: const Text('Назад'), // подпись на кнопке
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// ============================================================================
+// ЭКРАН "О ПРИЛОЖЕНИИ" — демонстрация Named Routes (способ 2)
+// ============================================================================
+
+class AboutAppScreen extends StatelessWidget { // экран "О приложении", для демонстрации Navigator.pushNamed
+  const AboutAppScreen({super.key}); // конструктор со стандартным key
+
+  @override
+  Widget build(BuildContext context) => Scaffold( // Scaffold — основа экрана
+    appBar: AppBar( // верхняя панель
+      title: const Text('О приложении (Named Route)'), // показываем, что мы тут по Named Route
+    ),
+    body: Center( // содержимое по центру
+      child: Column( // вертикальное расположение
+        mainAxisSize: MainAxisSize.min, // минимально возможная высота
+        crossAxisAlignment: CrossAxisAlignment.center, // выравнивание по центру
+        children: [
+          const Text(
+            'Этот экран открыт через Navigator.pushNamed(context, \'/about\').',
+          ), // пояснение, что это пример Named Route
+          const SizedBox(height: 12), // отступ
+          const Text(
+            'Используем routes в MaterialApp для централизованной конфигурации.',
+          ), // пояснение преимущества
+          const SizedBox(height: 24), // отступ
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context), // закрываем экран по pop()
+            child: const Text('Назад'), // подпись
+          ),
+        ],
+      ),
+    ),
+  );
+
