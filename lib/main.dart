@@ -765,3 +765,133 @@ class AboutAppScreen extends StatelessWidget { // экран "О приложе�
     ),
   );
 
+// ============================================================================
+// ДЕМОНСТРАЦИЯ GoRouter — способ 3 (продвинутая навигация)
+// Важно: мы не ломаем текущее приложение, а встраиваем отдельный "под-модуль".
+// Он открывается из HomeScreen через обычный Navigator.push,
+// а внутри уже работает GoRouter со своими путями.
+// ============================================================================
+
+// Конфигурация GoRouter для демонстрационного модуля
+  final GoRouter _demoRouter = GoRouter( // создаём экземпляр GoRouter
+    routes: [ // список маршрутов внутри демо-модуля
+      GoRoute( // первый маршрут — "главный" экран демо
+        path: '/', // корневой путь внутри этого под-приложения
+        builder: (_, __) => const RouterDemoHomeScreen(), // экран со списком кнопок
+      ),
+      GoRoute( // второй маршрут
+        path: '/feed', // путь для "ленты"
+        builder: (_, __) => const RouterDemoFeedScreen(), // экран-демо ленты
+      ),
+      GoRoute( // третий маршрут
+        path: '/profile', // путь для профиля
+        builder: (_, __) => const RouterDemoProfileScreen(), // экран-демо профиля
+      ),
+    ],
+  );
+
+// Обёртка над GoRouter, которую мы открываем из основного приложения
+  class RouterDemoShell extends StatelessWidget { // отдельный виджет-оболочка для GoRouter
+  const RouterDemoShell({super.key}); // стандартный конструктор
+
+  @override
+  Widget build(BuildContext context) { // строим вложенный MaterialApp.router
+  return MaterialApp.router( // отдельный MaterialApp для демо-модуля
+  debugShowCheckedModeBanner: false, // убираем надпись DEBUG
+  routerConfig: _demoRouter, // передаём нашу конфигурацию GoRouter
+  );
+  }
+  }
+
+// Главный экран демо GoRouter
+  class RouterDemoHomeScreen extends StatelessWidget { // стартовый экран демо-навигации на GoRouter
+  const RouterDemoHomeScreen({super.key}); // конструктор
+
+  @override
+  Widget build(BuildContext context) => Scaffold( // Scaffold стандартный
+  appBar: AppBar( // верхняя панель
+  title: const Text('GoRouter демо'), // заголовок
+  leading: IconButton( // левая кнопка в AppBar
+  icon: const Icon(Icons.close), // иконка "крестик"
+  onPressed: () {
+  // Закрываем весь демо-модуль и возвращаемся в основное приложение
+  Navigator.of(context).pop(); // выходим из RouterDemoShell
+  },
+  ),
+  ),
+  body: Center( // содержимое по центру
+  child: Column( // вертикальная колонка
+  mainAxisSize: MainAxisSize.min, // минимальная высота
+  children: [
+  const Text(
+  'Внутри этого экрана маршрутизация управляется GoRouter.',
+  ), // пояснение
+  const SizedBox(height: 16), // отступ
+  ElevatedButton(
+  onPressed: () {
+  // Переход на экран "ленты" через GoRouter
+  context.push('/feed'); // используем context.push из go_router
+  },
+  child: const Text('Перейти на экран ленты (/feed)'),
+  ),
+  ElevatedButton(
+  onPressed: () {
+  // Переход на экран "профиля"
+  context.push('/profile'); // тоже через GoRouter
+  },
+  child: const Text('Перейти на экран профиля (/profile)'),
+  ),
+  ],
+  ),
+  ),
+  );
+  }
+
+// Экран "ленты" в демо GoRouter
+  class RouterDemoFeedScreen extends StatelessWidget { // демонстрационный экран
+  const RouterDemoFeedScreen({super.key}); // конструктор
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+  appBar: AppBar( // верхняя панель
+  title: const Text('GoRouter: Лента'), // заголовок
+  ),
+  body: Center( // содержимое по центру
+  child: Column(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+  const Text('Это демонстрационный экран "ленты" внутри GoRouter.'), // пояснение
+  const SizedBox(height: 16),
+  ElevatedButton(
+  onPressed: () => context.pop(), // возвращаемся на RouterDemoHomeScreen
+  child: const Text('Назад'),
+  ),
+  ],
+  ),
+  ),
+  );
+  }
+
+// Экран "профиля" в демо GoRouter
+  class RouterDemoProfileScreen extends StatelessWidget { // ещё один демонстрационный экран
+  const RouterDemoProfileScreen({super.key}); // конструктор
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+  appBar: AppBar( // верхняя панель
+  title: const Text('GoRouter: Профиль'), // заголовок
+  ),
+  body: Center(
+  child: Column(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+  const Text('Это демонстрационный экран "профиля" внутри GoRouter.'), // пояснение
+  const SizedBox(height: 16),
+  ElevatedButton(
+  onPressed: () => context.pop(), // назад к RouterDemoHomeScreen
+  child: const Text('Назад'),
+  ),
+  ],
+  ),
+  ),
+  );
