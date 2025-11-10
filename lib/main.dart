@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart'; // подключаем flutter ui-библиотеку, без неё виджеты и темы недоступны
 import 'package:shared_preferences/shared_preferences.dart'; // подключаем хранилище простых настроек на устройстве (key-value)
 import 'package:supabase_flutter/supabase_flutter.dart'; // подключаем клиент supabase для работы с бэкендом, базой и хранилищем
-import 'package:go_router/go_router.dart'; // для варианта 3 (GoRouter)
+import 'package:go_router/go_router.dart'; // для GoRouter
 
 // supabase: базовая конфигурация и клиент
 const String supabaseUrl = 'https://azccbwduobbulgdgucjj.supabase.co'; // const потому что это неизменяемый адрес проекта supabase, он известен на этапе компиляции
@@ -231,11 +231,9 @@ class _MyAppState extends State<MyApp> { // состояние приложен�
           themeController: _theme, // передаём контроллер темы для быстрого переключения в ui
         ),
         routes: {
-          '/photo': (_) => const PhotoViewScreen(), // регистрируем именованный маршрут на экран просмотра фото
-
-          // ===== Лабораторная: Named Routes в реальном приложении =====
-          '/settings': (context) => const SettingsScreen(), // экран настроек, открываем через pushNamed
-          '/about': (context) => const AboutAppScreen(), // экран "О приложении", тоже через pushNamed
+          '/photo': (_) => const PhotoViewScreen(), // именованный маршрут на экран просмотра фото
+          '/settings': (context) => const SettingsScreen(), // пример: экран настроек, открывается через pushNamed
+          '/about': (context) => const AboutAppScreen(), // пример: экран "О приложении", тоже через pushNamed
         },
 
       ),
@@ -370,34 +368,37 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
 
           Expanded(child: InfoCard(icon: Icons.event, iconColor: Colors.green, title: '15 событий')),// карточка "события"
         ]),
+
+        const SizedBox(height: 16), // отступ
+
         // ===== Лабораторная: демонстрация трёх способов навигации в реальном приложении =====
-        Container( // контейнер-карточка в стиле приложения
+        Container( // отдельная карточка в общем стиле интерфейса
           padding: const EdgeInsets.all(16), // внутренние отступы
           margin: const EdgeInsets.symmetric(horizontal: 8), // внешний отступ по бокам
-          decoration: BoxDecoration( // оформление блока
-            color: Theme.of(context).cardColor, // фон берём из текущей темы
-            borderRadius: BorderRadius.circular(16), // скругляем углы как в InfoCard/PostCard
+          decoration: BoxDecoration( // оформление карточки
+            color: Theme.of(context).cardColor, // фон из текущей темы
+            borderRadius: BorderRadius.circular(16), // скруглённые углы как у других карточек
           ),
-          child: Column( // вертикальное расположение содержимого
+          child: Column( // вертикальное содержимое
             crossAxisAlignment: CrossAxisAlignment.start, // выравниваем текст по левому краю
             children: [
               const Text( // заголовок блока
                 'Лабораторная: навигация внутри проекта',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8), // вертикальный отступ
-              const Text( // пояснение к блоку
-                'Ниже три кнопки показывают три разных подхода навигации:',
+              const SizedBox(height: 8), // отступ
+              const Text( // пояснение
+                'Три подхода навигации на реальных экранах приложения:',
               ),
               const SizedBox(height: 12), // отступ
-              Wrap( // используем Wrap, чтобы кнопки красиво переносились по строкам
-                spacing: 8, // горизонтальный отступ между кнопками
-                runSpacing: 8, // вертикальный отступ между строками кнопок
+              Wrap( // используем Wrap, чтобы кнопки красиво переносились
+                spacing: 8, // горизонтальный промежуток
+                runSpacing: 8, // вертикальный промежуток
                 children: [
-                  ElevatedButton( // КНОПКА 1: прямой Navigator.push/pop
+                  ElevatedButton( // 1) прямой Navigator.push/pop
                     onPressed: () {
                       // ВАРИАНТ 1: прямой переход через MaterialPageRoute
-                      // Открываем экран настроек темы/пользователя как пример
+                      // Открываем экран настроек как пример реального экрана
                       Navigator.of(context).push(
                         MaterialPageRoute( // создаём маршрут "на лету"
                           builder: (_) => const SettingsScreen(), // целевой экран
@@ -406,21 +407,22 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
                     },
                     child: const Text('1) Navigator.push/pop'),
                   ),
-                  ElevatedButton( // КНОПКА 2: Named Routes
+                  ElevatedButton( // 2) Named Routes
                     onPressed: () {
-                      // ВАРИАНТ 2: переход по именованному маршруту
-                      // Маршрут '/about' зарегистрирован в MaterialApp.routes
+                      // ВАРИАНТ 2: именованные маршруты
+                      // '/about' зарегистрирован в MaterialApp.routes
                       Navigator.of(context).pushNamed('/about');
                     },
                     child: const Text('2) Named Routes'),
                   ),
-                  ElevatedButton( // КНОПКА 3: GoRouter
+                  ElevatedButton( // 3) GoRouter
                     onPressed: () {
-                      // ВАРИАНТ 3: GoRouter как под-модуль
-                      // Открываем отдельный экран, внутри которого навигация уже на GoRouter
+                      // ВАРИАНТ 3: GoRouter как вложенный модуль
+                      // Открываем RouterDemoShell через обычный Navigator,
+                      // внутри него уже работает GoRouter.
                       Navigator.of(context).push(
-                        MaterialPageRoute( // обычный Navigator твоего приложения
-                          builder: (_) => const RouterDemoShell(), // внутри — GoRouter
+                        MaterialPageRoute(
+                          builder: (_) => const RouterDemoShell(),
                         ),
                       );
                     },
@@ -431,9 +433,9 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
             ],
           ),
         ),
-        const SizedBox(height: 16), // отступ перед следующим контентом
+        const SizedBox(height: 16), // отступ перед лентой постов
 
-        const SizedBox(height: 16), // отступ
+
         ...posts.expand((p) sync* { // разворачиваем посты в последовательность виджетов: карточка поста + отступ
           yield PostCard.buildFromData(// создаём карточку поста из модели
             context: context, // передаём контекст для навигации
@@ -658,52 +660,71 @@ class PostCard extends StatelessWidget { // карточка отдельног�
     );
   }
 }
+
 class PhotoViewScreen extends StatelessWidget { // экран просмотра изображения
   final String? imageAsset; // final потому что путь/ссылка на изображение задаётся при создании и не меняется
+
   const PhotoViewScreen({super.key, this.imageAsset}); // конструктор принимает опциональный путь/ссылку
 
   @override
   Widget build(BuildContext context) { // строим интерфейс просмотра
-    final isUrl = (imageAsset ?? '').isHttpUrl;// проверяем, является ли строка http/https url
-    final child = imageAsset == null // если ничего не передали
-        ? const Center(child: Text('Нет изображения', style: TextStyle(color: Colors.white)))// показываем сообщение
-        : Center(child: InteractiveViewer(child: isUrl ? Image.network(imageAsset!, fit: BoxFit.contain) : Image.asset(imageAsset!, fit: BoxFit.contain))); // иначе показываем картинку с возможностью зума
+    final isUrl = (imageAsset ?? '').isHttpUrl; // проверяем, является ли строка http/https url
+
+    final Widget child = imageAsset == null // если ничего не передали
+        ? const Center(
+      child: Text(
+        'Нет изображения',
+        style: TextStyle(color: Colors.white),
+      ),
+    ) // показываем сообщение
+        : Center(
+      // иначе показываем картинку с возможностью зума
+      child: InteractiveViewer(
+        child: isUrl
+            ? Image.network(imageAsset!, fit: BoxFit.contain)
+            : Image.asset(imageAsset!, fit: BoxFit.contain),
+      ),
+    );
+
     return Scaffold( // каркас экрана
       backgroundColor: Colors.black, // тёмный фон для фото
       body: SafeArea( // содержимое в безопасной области
-        child: Stack(children: [ // накладываем панель на картинку
-          child, // сам просмотрщик
-          Positioned( // нижняя панель поверх
-            left: 0, // от левого края
-            right: 0, // до правого края
-            bottom: 0, // у низа
-            child: Container(// полупрозрачная подложка под кнопки
-              color: Colors.black54, // тёмный полупрозрачный фон
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),// внутренние отступы
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [ // кнопки по краям
-                IconButton( // "домой"
-                  icon: const Icon(Icons.home, color: Colors.white), // белая иконка
-                  onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst), // возвращаемся на корневой экран
+        child: Stack( // накладываем панель на картинку
+          children: [
+            child, // сам просмотрщик
+            Positioned( // нижняя панель поверх
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                color: Colors.black54, // тёмный полупрозрачный фон
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton( // "домой"
+                      icon: const Icon(Icons.home, color: Colors.white),
+                      onPressed: () =>
+                          Navigator.of(context).popUntil((r) => r.isFirst), // возвращаемся на корневой экран
+                    ),
+                    IconButton( // "назад"
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.of(context).maybePop(), // возвращаемся на предыдущий экран
+                    ),
+                  ],
                 ),
-                IconButton( // "назад"
-                  icon: const Icon(Icons.arrow_back, color: Colors.white), // белая иконка
-                  onPressed: () => Navigator.of(context).maybePop(), // возвращаемся на предыдущий экран
-                ),
-              ]),
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 }
-// ============================================================================
-// ЭКРАН НАСТРОЕК — демонстрация прямого Navigator.push / pop (способ 1)
-// ============================================================================
 
+// ЭКРАН НАСТРОЕК — демонстрация прямого Navigator.push / pop
 class SettingsScreen extends StatelessWidget { // экран настроек, открываем напрямую через MaterialPageRoute (Navigator.push)
   const SettingsScreen({super.key}); // конструктор, super.key пробрасываем в базовый StatelessWidget
-
   @override
   Widget build(BuildContext context) => Scaffold( // Scaffold — стандартный каркас экрана
     appBar: AppBar( // верхняя панель приложения
@@ -730,11 +751,7 @@ class SettingsScreen extends StatelessWidget { // экран настроек, �
     ),
   );
 }
-
-// ============================================================================
-// ЭКРАН "О ПРИЛОЖЕНИИ" — демонстрация Named Routes (способ 2)
-// ============================================================================
-
+// ЭКРАН "О ПРИЛОЖЕНИИ" — демонстрация Named Routes
 class AboutAppScreen extends StatelessWidget { // экран "О приложении", для демонстрации Navigator.pushNamed
   const AboutAppScreen({super.key}); // конструктор со стандартным key
 
@@ -764,134 +781,110 @@ class AboutAppScreen extends StatelessWidget { // экран "О приложе�
       ),
     ),
   );
+}
 
-// ============================================================================
-// ДЕМОНСТРАЦИЯ GoRouter — способ 3 (продвинутая навигация)
-// Важно: мы не ломаем текущее приложение, а встраиваем отдельный "под-модуль".
-// Он открывается из HomeScreen через обычный Navigator.push,
-// а внутри уже работает GoRouter со своими путями.
-// ============================================================================
+// ДЕМОНСТРАЦИЯ GoRouter
+final GoRouter _demoRouter = GoRouter( // конфигурация GoRouter для демо-модуля
+  routes: [ // список маршрутов внутри демо
+    GoRoute( // стартовый экран демо
+      path: '/', // корневой путь внутри демо
+      builder: (_, __) => const RouterDemoHomeScreen(), // экран с кнопками
+    ),
+    GoRoute( // экран "ленты"
+      path: '/feed',
+      builder: (_, __) => const RouterDemoFeedScreen(), // демонстрация ещё одного маршрута
+    ),
+    GoRoute( // экран "профиля"
+      path: '/profile',
+      builder: (_, __) => const RouterDemoProfileScreen(), // ещё один маршрут
+    ),
+  ],
+);
 
-// Конфигурация GoRouter для демонстрационного модуля
-  final GoRouter _demoRouter = GoRouter( // создаём экземпляр GoRouter
-    routes: [ // список маршрутов внутри демо-модуля
-      GoRoute( // первый маршрут — "главный" экран демо
-        path: '/', // корневой путь внутри этого под-приложения
-        builder: (_, __) => const RouterDemoHomeScreen(), // экран со списком кнопок
-      ),
-      GoRoute( // второй маршрут
-        path: '/feed', // путь для "ленты"
-        builder: (_, __) => const RouterDemoFeedScreen(), // экран-демо ленты
-      ),
-      GoRoute( // третий маршрут
-        path: '/profile', // путь для профиля
-        builder: (_, __) => const RouterDemoProfileScreen(), // экран-демо профиля
-      ),
-    ],
-  );
-
-// Обёртка над GoRouter, которую мы открываем из основного приложения
-  class RouterDemoShell extends StatelessWidget { // отдельный виджет-оболочка для GoRouter
-  const RouterDemoShell({super.key}); // стандартный конструктор
+class RouterDemoShell extends StatelessWidget { // оболочка демо-модуля для GoRouter
+  const RouterDemoShell({super.key}); // конструктор
 
   @override
-  Widget build(BuildContext context) { // строим вложенный MaterialApp.router
-  return MaterialApp.router( // отдельный MaterialApp для демо-модуля
-  debugShowCheckedModeBanner: false, // убираем надпись DEBUG
-  routerConfig: _demoRouter, // передаём нашу конфигурацию GoRouter
-  );
+  Widget build(BuildContext context) {
+    return Scaffold( // обычный экран внутри основного приложения
+      appBar: AppBar(
+        title: const Text('GoRouter демо'), // заголовок демо
+        leading: IconButton(
+          icon: const Icon(Icons.close), // иконка "X"
+          onPressed: () {
+            // Выходим из демо и возвращаемся на корневой экран приложения
+            // (экран входа или домашний — смотря откуда заходили)
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          },
+        ),
+      ),
+      body: Router( // встроенный Router, который управляется нашим _demoRouter
+        routerDelegate: _demoRouter.routerDelegate, // делегат, рисующий нужные экраны
+        routeInformationParser: _demoRouter.routeInformationParser, // парсер путей (для Router)
+        routeInformationProvider: _demoRouter.routeInformationProvider, // провайдер информации о маршруте
+      ),
+    );
   }
-  }
-
-// Главный экран демо GoRouter
-  class RouterDemoHomeScreen extends StatelessWidget { // стартовый экран демо-навигации на GoRouter
+}
+class RouterDemoHomeScreen extends StatelessWidget { // стартовый экран демо GoRouter
   const RouterDemoHomeScreen({super.key}); // конструктор
 
   @override
-  Widget build(BuildContext context) => Scaffold( // Scaffold стандартный
-  appBar: AppBar( // верхняя панель
-  title: const Text('GoRouter демо'), // заголовок
-  leading: IconButton( // левая кнопка в AppBar
-  icon: const Icon(Icons.close), // иконка "крестик"
-  onPressed: () {
-  // Закрываем весь демо-модуль и возвращаемся в основное приложение
-  Navigator.of(context).pop(); // выходим из RouterDemoShell
-  },
-  ),
-  ),
-  body: Center( // содержимое по центру
-  child: Column( // вертикальная колонка
-  mainAxisSize: MainAxisSize.min, // минимальная высота
-  children: [
-  const Text(
-  'Внутри этого экрана маршрутизация управляется GoRouter.',
-  ), // пояснение
-  const SizedBox(height: 16), // отступ
-  ElevatedButton(
-  onPressed: () {
-  // Переход на экран "ленты" через GoRouter
-  context.push('/feed'); // используем context.push из go_router
-  },
-  child: const Text('Перейти на экран ленты (/feed)'),
-  ),
-  ElevatedButton(
-  onPressed: () {
-  // Переход на экран "профиля"
-  context.push('/profile'); // тоже через GoRouter
-  },
-  child: const Text('Перейти на экран профиля (/profile)'),
-  ),
-  ],
-  ),
-  ),
+  Widget build(BuildContext context) => Center( // только содержимое, без собственного AppBar
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          'Внутри этого модуля навигация управляется GoRouter.',
+        ), // пояснение
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () => context.push('/feed'), // переход на маршрут /feed
+          child: const Text('Перейти на экран ленты (/feed)'),
+        ),
+        ElevatedButton(
+          onPressed: () => context.push('/profile'), // переход на маршрут /profile
+          child: const Text('Перейти на экран профиля (/profile)'),
+        ),
+      ],
+    ),
   );
-  }
+}
 
-// Экран "ленты" в демо GoRouter
-  class RouterDemoFeedScreen extends StatelessWidget { // демонстрационный экран
+class RouterDemoFeedScreen extends StatelessWidget { // экран "ленты" в демо GoRouter
   const RouterDemoFeedScreen({super.key}); // конструктор
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-  appBar: AppBar( // верхняя панель
-  title: const Text('GoRouter: Лента'), // заголовок
-  ),
-  body: Center( // содержимое по центру
-  child: Column(
-  mainAxisSize: MainAxisSize.min,
-  children: [
-  const Text('Это демонстрационный экран "ленты" внутри GoRouter.'), // пояснение
-  const SizedBox(height: 16),
-  ElevatedButton(
-  onPressed: () => context.pop(), // возвращаемся на RouterDemoHomeScreen
-  child: const Text('Назад'),
-  ),
-  ],
-  ),
-  ),
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Это демонстрационный экран "ленты" внутри GoRouter.'), // подсказка
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () => context.pop(), // назад к RouterDemoHomeScreen
+          child: const Text('Назад'),
+        ),
+      ],
+    ),
   );
-  }
+}
 
-// Экран "профиля" в демо GoRouter
-  class RouterDemoProfileScreen extends StatelessWidget { // ещё один демонстрационный экран
+class RouterDemoProfileScreen extends StatelessWidget { // экран "профиля" в демо GoRouter
   const RouterDemoProfileScreen({super.key}); // конструктор
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-  appBar: AppBar( // верхняя панель
-  title: const Text('GoRouter: Профиль'), // заголовок
-  ),
-  body: Center(
-  child: Column(
-  mainAxisSize: MainAxisSize.min,
-  children: [
-  const Text('Это демонстрационный экран "профиля" внутри GoRouter.'), // пояснение
-  const SizedBox(height: 16),
-  ElevatedButton(
-  onPressed: () => context.pop(), // назад к RouterDemoHomeScreen
-  child: const Text('Назад'),
-  ),
-  ],
-  ),
-  ),
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Это демонстрационный экран "профиля" внутри GoRouter.'), // подсказка
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () => context.pop(), // назад к RouterDemoHomeScreen
+          child: const Text('Назад'),
+        ),
+      ],
+    ),
   );
+}
