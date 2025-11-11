@@ -368,10 +368,8 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
 
           Expanded(child: InfoCard(icon: Icons.event, iconColor: Colors.green, title: '15 событий')),// карточка "события"
         ]),
-
         const SizedBox(height: 16), // отступ
-
-        // ===== Лабораторная: демонстрация трёх способов навигации в реальном приложении =====
+        // демонстрация трёх способов навигации в реальном приложении =====
         Container( // отдельная карточка в общем стиле интерфейса
           padding: const EdgeInsets.all(16), // внутренние отступы
           margin: const EdgeInsets.symmetric(horizontal: 8), // внешний отступ по бокам
@@ -434,8 +432,6 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
           ),
         ),
         const SizedBox(height: 16), // отступ перед лентой постов
-
-
         ...posts.expand((p) sync* { // разворачиваем посты в последовательность виджетов: карточка поста + отступ
           yield PostCard.buildFromData(// создаём карточку поста из модели
             context: context, // передаём контекст для навигации
@@ -660,16 +656,12 @@ class PostCard extends StatelessWidget { // карточка отдельног�
     );
   }
 }
-
 class PhotoViewScreen extends StatelessWidget { // экран просмотра изображения
   final String? imageAsset; // final потому что путь/ссылка на изображение задаётся при создании и не меняется
-
   const PhotoViewScreen({super.key, this.imageAsset}); // конструктор принимает опциональный путь/ссылку
-
   @override
   Widget build(BuildContext context) { // строим интерфейс просмотра
     final isUrl = (imageAsset ?? '').isHttpUrl; // проверяем, является ли строка http/https url
-
     final Widget child = imageAsset == null // если ничего не передали
         ? const Center(
       child: Text(
@@ -685,7 +677,6 @@ class PhotoViewScreen extends StatelessWidget { // экран просмотра
             : Image.asset(imageAsset!, fit: BoxFit.contain),
       ),
     );
-
     return Scaffold( // каркас экрана
       backgroundColor: Colors.black, // тёмный фон для фото
       body: SafeArea( // содержимое в безопасной области
@@ -721,7 +712,6 @@ class PhotoViewScreen extends StatelessWidget { // экран просмотра
     );
   }
 }
-
 // ЭКРАН НАСТРОЕК — демонстрация прямого Navigator.push / pop
 class SettingsScreen extends StatelessWidget { // экран настроек, открываем напрямую через MaterialPageRoute (Navigator.push)
   const SettingsScreen({super.key}); // конструктор, super.key пробрасываем в базовый StatelessWidget
@@ -754,7 +744,6 @@ class SettingsScreen extends StatelessWidget { // экран настроек, �
 // ЭКРАН "О ПРИЛОЖЕНИИ" — демонстрация Named Routes
 class AboutAppScreen extends StatelessWidget { // экран "О приложении", для демонстрации Navigator.pushNamed
   const AboutAppScreen({super.key}); // конструктор со стандартным key
-
   @override
   Widget build(BuildContext context) => Scaffold( // Scaffold — основа экрана
     appBar: AppBar( // верхняя панель
@@ -782,7 +771,6 @@ class AboutAppScreen extends StatelessWidget { // экран "О приложе�
     ),
   );
 }
-
 // ДЕМОНСТРАЦИЯ GoRouter
 final GoRouter _demoRouter = GoRouter( // конфигурация GoRouter для демо-модуля
   routes: [ // список маршрутов внутри демо
@@ -800,10 +788,8 @@ final GoRouter _demoRouter = GoRouter( // конфигурация GoRouter дл
     ),
   ],
 );
-
 class RouterDemoShell extends StatelessWidget { // оболочка демо-модуля для GoRouter
   const RouterDemoShell({super.key}); // конструктор
-
   @override
   Widget build(BuildContext context) {
     return Scaffold( // обычный экран внутри основного приложения
@@ -828,7 +814,6 @@ class RouterDemoShell extends StatelessWidget { // оболочка демо-м�
 }
 class RouterDemoHomeScreen extends StatelessWidget { // стартовый экран демо GoRouter
   const RouterDemoHomeScreen({super.key}); // конструктор
-
   @override
   Widget build(BuildContext context) => Center( // только содержимое, без собственного AppBar
     child: Column(
@@ -850,10 +835,8 @@ class RouterDemoHomeScreen extends StatelessWidget { // стартовый эк�
     ),
   );
 }
-
 class RouterDemoFeedScreen extends StatelessWidget { // экран "ленты" в демо GoRouter
   const RouterDemoFeedScreen({super.key}); // конструктор
-
   @override
   Widget build(BuildContext context) => Center(
     child: Column(
@@ -869,10 +852,8 @@ class RouterDemoFeedScreen extends StatelessWidget { // экран "ленты" 
     ),
   );
 }
-
 class RouterDemoProfileScreen extends StatelessWidget { // экран "профиля" в демо GoRouter
   const RouterDemoProfileScreen({super.key}); // конструктор
-
   @override
   Widget build(BuildContext context) => Center(
     child: Column(
