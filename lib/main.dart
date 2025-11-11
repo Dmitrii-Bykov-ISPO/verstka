@@ -35,25 +35,131 @@ class ThemeController extends ChangeNotifier { // контроллер темы,
     await prefs.setString('theme_mode', _mode == ThemeMode.light ? 'light' : 'dark');  // сохраняем выбранный режим строкой, чтобы восстановить при следующем запуске
   }
 }
-class SimpleAuth {  // очень простая "аутентификация" через таблицу users без безопасных токенов
-  static const _prefsKey = 'current_user_id';  // const потому что ключ хранения фиксированный и не меняется
-  static Future<String?> getCurrentUserId() async =>  // метод читает текущий id пользователя из настроек
-  (await SharedPreferences.getInstance()).getString(_prefsKey);  // достаём строку по ключу, может быть null если не входили
-  static Future<void> setCurrentUserId(String userId) async => // метод сохраняет текущий id пользователя в настройки
-  (await SharedPreferences.getInstance()).setString(_prefsKey, userId); // кладём строку по ключу
-  static Future<void> signOut() async =>  // метод "выход" — просто удаляет id из настроек
-  (await SharedPreferences.getInstance()).remove(_prefsKey); // убираем ключ из локального хранилища
-  static Future<String?> signIn(String login, String password) async  { // метод "вход" — проверяет логин/пароль в таблице users и возвращает id или null
-    String norm(String s) => s.trim().toLowerCase(); // локальная функция нормализует строку: убираем пробелы по краям и приводим к нижнему регистру
-    final row = await supabase  // обращаемся к базе supabase
-        .from('users')  // выбираем таблицу users
-        .select('id') // запрашиваем только поле id (нам его достаточно)
-        .eq('login', norm(login)) // условие: login равен нормализованному введённому логину
-        .eq('password', norm(password)) // условие: password равен нормализованному введённому паролю (в проде так не надо будет делать, нужен хэш, но мне лень))))
-        .maybeSingle(); // берём одну запись или null, если ничего не найдено
-    return row?['id'] as String?; // если запись есть — достаём поле id как строку, иначе вернётся null
+class AuthService { // обёртка над supabase.auth и профилями public.users
+  static SupabaseClient get _supa => Supabase.instance.client; // короткий доступ к клиенту
+
+  static User? get currentUser => _supa.auth.currentUser; // текущий пользователь (или null)
+
+  static Future<void> signOut() async { // выход из аккаунта
+    await _supa.auth.signOut(); // очищаем сессию и токены
+  }
+
+  // Регистрация (если понадобится)
+  static Future<AuthResponse> signUp({
+    required String email,// email для входа
+    required String password,// пароль
+    required String login,// логин (фамилия+инициалы)
+    required String fullName,// ФИО
+  }) async {
+    return _supa.auth.signUp(
+      email: email,// почта
+      password: password,// пароль
+      data: {// метаданные → пойдут в public.users через триггер
+        'login': login,
+        'full_name': fullName,
+      },
+    );
+  }
+  // Вход по логину/email + пароль, с опциональной 2FA по email-коду
+  static Future<_TwoFactorPlan> signInWithPasswordAndPlan2FA({
+    required String identifier,// логин ИЛИ email
+    required String password, //пароль
+  }) async {
+    final idNorm = identifier.trim().toLowerCase(); // нормализуем ввод
+
+    String? email;// сюда положим email
+
+    if (idNorm.contains('@')) {// если похоже на email
+      email = idNorm;
+    } else {// иначе считаем, что это login
+      final row = await _supa
+          .from('users')
+          .select('email')
+          .eq('login', idNorm)
+          .maybeSingle();// ищем профиль по login
+      email = row?['email'] as String?;
+    }
+    if (email == null || email.isEmpty) {
+      throw AuthException('Пользователь не найден или не задан email');
+    }
+    // 1) Проверяем пароль (Supabase создаст СЕССИЮ)
+    final res = await _supa.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+    final user = res.user;
+    if (user == null) {
+      throw AuthException('Не удалось войти');
+    }
+    // 2) Читаем профиль, чтобы понять режим 2FA
+    final profile = await _supa
+        .from('users')
+        .select('two_factor_type, email')
+        .eq('id', user.id)
+        .maybeSingle();
+    final mode = (profile?['two_factor_type'] as String?) ?? 'auto';// auto/email/none
+    final profileEmail = (profile?['email'] as String?) ?? email;// email из профиля или auth
+    if (mode == 'none') {
+      // Оставляем созданную сессию → пользователь уже полностью залогинен
+      return _TwoFactorPlan.none(user.id);
+    }
+
+    // === Вариант с 2FA по email ===
+    if ((mode == 'auto' || mode == 'email') &&
+        profileEmail != null &&
+        profileEmail.isNotEmpty) {
+      // ВАЖНО: пароль прошёл, но мы НЕ доверяем этой сессии до ввода кода
+      await _supa.auth.signOut();// убираем сессию от signInWithPassword
+      await _supa.auth.signInWithOtp(// отправляем одноразовый код на email
+        email: profileEmail,
+        shouldCreateUser: false,// не создаём нового пользователя
+      );
+      // Сейчас НЕТ активной сессии. Она появится только после verifyOTP.
+      return _TwoFactorPlan.email(user.id, profileEmail);
+    }
+    // Если ни email, ни валидный режим — считаем, что 2FA недоступна, оставляем вход по паролю
+    return _TwoFactorPlan.none(user.id);
+  }
+
+  // Подтверждение одноразового кода (email 2FA)
+  static Future<void> verifyOtp({
+    required _TwoFactorPlan plan,// план, полученный на первом шаге
+    required String code,// код из письма
+  }) async {
+    if (plan.kind == _TwoFactorKind.none) {
+      return;// если 2FA не нужна — ничего не делаем
+    }
+
+    if (plan.kind == _TwoFactorKind.email) {
+      // verifyOTP создаст НОВУЮ полноценную сессию, если код верный
+      await _supa.auth.verifyOTP(
+        token: code.trim(),// введённый код
+        type: OtpType.email,// подтверждаем по email
+        email: plan.target,// адрес, на который слали код
+      );
+      return;
+    }
   }
 }
+
+// Варианты 2FA для плана
+enum _TwoFactorKind { none, email }
+
+// Описание "плана" 2FA
+class _TwoFactorPlan {
+  final String userId;// uid пользователя (из успешного password-логина)
+  final _TwoFactorKind kind;// вид 2FA
+  final String? target;// email для кода
+
+  _TwoFactorPlan._(this.userId, this.kind, this.target);
+
+  factory _TwoFactorPlan.none(String userId) =>
+      _TwoFactorPlan._(userId, _TwoFactorKind.none, null);
+
+  factory _TwoFactorPlan.email(String userId, String email) =>
+      _TwoFactorPlan._(userId, _TwoFactorKind.email, email);
+}
+
 class UserModel { // простая модель пользователя для удобной передачи данных
   final String id; // final потому что после создания объекта id пользователя не должен меняться
   final String login; // final по той же причине — логин фиксируется при создании модели
@@ -168,127 +274,286 @@ class PostsRepository {  // репозиторий инкапсулирует в
 extension _Let<T> on T { // небольшое расширение let, для удобной цепочки действий
   R let<R>(R Function(T it) f) => f(this);  // вызывает переданную функцию с текущим значением и возвращает её результат, упрощая ветвления
 }
-Future<void> main() async {  // точка входа в приложение, async потому что нужно дождаться инициализации supabase перед runApp
-  WidgetsFlutterBinding.ensureInitialized();// инициализируем движок flutter до выполнения асинхронных операций, чтобы всё работало корректно
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey); // инициализируем sdk supabase, передаём адрес и публичный ключ
-  supabase = Supabase.instance.client;// присваиваем глобальной late final переменной готовый клиент, делаем это один раз на запуске
-  runApp(const MyApp());// запускаем само приложение, передаём корневой виджет, const потому что экземпляр без состояния на входе
+Future<void> main() async {// точка входа приложения
+  WidgetsFlutterBinding.ensureInitialized();// инициализируем Flutter до асинхронщины
+  await Supabase.initialize(// инициализируем Supabase SDK
+    url: supabaseUrl,// адрес проекта
+    anonKey: supabaseAnonKey,// публичный anon key
+  );
+  supabase = Supabase.instance.client;// сохраняем клиент в глобальную переменную
+
+  final current = supabase.auth.currentUser;// читаем текущего пользователя из локальной сессии (если есть)
+  runApp(MyApp(initialUserId: current?.id));// если уже залогинен — сразу в Home, иначе Login
 }
-class MyApp extends StatefulWidget {// корневой виджет-приложение со стейтом, чтобы можно было реагировать на смену темы и пользователя
-  final ThemeController? themeController;// final — ссылка на контроллер темы, если передадут извне, меняться не должна
-  final String? initialUserId;  // final — начальный id пользователя можно передать извне, после создания не меняем
-  const MyApp({super.key, this.themeController, this.initialUserId});  // конструктор с именованными параметрами, key передаём вверх по иерархии
+
+class MyApp extends StatefulWidget {// корневой виджет c состоянием
+  final ThemeController? themeController;// опциональный внешний контроллер темы
+  final String? initialUserId;// uid, если пользователь уже залогинен
+  const MyApp({super.key, this.themeController, this.initialUserId});
+
   @override
-  State<MyApp> createState() => _MyAppState();  // создаём объект состояния для этого виджета
+  State<MyApp> createState() => _MyAppState();// создаём состояние
 }
-class _MyAppState extends State<MyApp> { // состояние приложения, тут живут тема и текущий пользователь
-  late final ThemeController _theme; // late final — инициализируем контроллер темы в initState и больше не меняем ссылку
-  String? _userId; // текущий id пользователя, может быть null, когда не вошли
-  bool _themeReady = false; // флаг "тема загружена", чтобы не мигало при старте
+
+class _MyAppState extends State<MyApp> {
+  late final ThemeController _theme;// контроллер темы
+  String? _userId;// текущий uid пользователя (auth.users.id)
+  bool _themeReady = false; //флаг готовности темы
+
   @override
-  void initState() { // метод вызывается один раз при создании состояния
-    super.initState();  // всегда вызываем super, чтобы flutter сделал свою часть инициализации
-    _theme = widget.themeController ?? ThemeController(); // если контроллер темы передали — используем его, иначе создаём свой
-    _userId = widget.initialUserId;  // если начальный пользователь передан — запоминаем
-    _theme.load().whenComplete(() => mounted ? setState(() => _themeReady = true) : null); // загружаем сохранённую тему и после завершения ставим флаг и перерисовываемся, если ещё смонтированы
-    _ensureInitialUser(); // проверяем/подтягиваем id пользователя из локального хранилища
+  void initState() {
+    super.initState();// базовая инициализация
+    _theme = widget.themeController ?? ThemeController(); // берём переданный контроллер или создаём свой
+    _userId = widget.initialUserId;// если при старте уже есть пользователь — запоминаем
+    _initTheme();// запускаем загрузку сохранённой темы
   }
-  Future<void> _ensureInitialUser() async { // приватный метод подтверждает, что у нас есть id пользователя при старте
-    _userId ??= await SimpleAuth.getCurrentUserId(); // если _userId пока null — читаем из shared preferences
-    if (mounted) setState(() {}); // если виджет на экране — просим перерисовать, чтобы отобразить правильный экран
+
+  Future<void> _initTheme() async {// приватный метод загрузки темы
+    await _theme.load();// читаем режим из SharedPreferences
+    if (!mounted) return;// если виджет уже уничтожен — выходим
+    setState(() => _themeReady = true);// отмечаем, что тема готова
   }
+
   @override
-  Widget build(BuildContext context) { // метод рисует дерево виджетов в зависимости от состояния
-    if (!_themeReady) {  // если тема ещё не загрузилась
-      return MaterialApp(debugShowCheckedModeBanner: false, home: Container(color: Colors.white));  // временно показываем пустой белый экран
+  Widget build(BuildContext context) {
+    if (!_themeReady) {// пока тема не загрузилась
+      return MaterialApp(// рисуем пустое светлое приложение-заглушку
+        debugShowCheckedModeBanner: false,
+        home: Container(color: Colors.white),
+      );
     }
-    return AnimatedBuilder(  // используем AnimatedBuilder, чтобы автоматически реагировать на notifyListeners() от ThemeController
-      animation: _theme, // подписываемся на контроллер темы
-      builder: (_, __) => MaterialApp( // строим приложение с темами
-        debugShowCheckedModeBanner: false, // убираем надпись debug
-        themeMode: _theme.mode, // выбираем текущий режим (light/dark/system)
-        theme: ThemeData( // светлая тема
-          brightness: Brightness.light, // базовая яркость — светлая
-          scaffoldBackgroundColor: const Color(0xFFF5EEDC),// фон экранов в светлой теме
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal), // палитра цветов
-          snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),// стиль снекбаров — всплывающие
+
+    return AnimatedBuilder(// AnimatedBuilder слушает изменения темы
+      animation: _theme,
+      builder: (_, __) => MaterialApp(
+        debugShowCheckedModeBanner: false,// убираем плашку DEBUG
+        themeMode: _theme.mode,// текущий режим темы
+        theme: ThemeData(// светлая тема
+          brightness: Brightness.light,
+          scaffoldBackgroundColor: const Color(0xFFF5EEDC),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+          snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
         ),
-        darkTheme: ThemeData(  // тёмная тема
-          brightness: Brightness.dark, // базовая яркость — тёмная
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark), // палитра под тёмную тему
-          snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating), // такой же стиль снекбаров
+        darkTheme: ThemeData(// тёмная тема
+          brightness: Brightness.dark,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.teal,
+            brightness: Brightness.dark,
+          ),
+          snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
         ),
-        home: _userId == null // выбираем, какой экран показывать в зависимости от того, вошёл ли пользователь
-            ? LoginScreen(onSignedIn: (u) => setState(() => _userId = u)) // если не вошёл — экран логина, по успешному входу записываем id и перерисовываемся
-            : HomeScreen( // если вошёл — главный экран
-          currentUserId: _userId!,  // передаём текущий id пользователя (восклицательный знак потому что уже проверили на null)
-          onSignOut: () async { // колбэк выхода из аккаунта
-            await SimpleAuth.signOut(); // чистим локальное хранилище от id
-            setState(() => _userId = null); // переключаемся обратно на экран логина
+        home: _userId == null// если пользователь не залогинен
+            ? LoginScreen(// показываем экран входа
+          onSignedIn: (uid) => setState(() => _userId = uid), // при успешном входе сохраняем uid
+        )
+            : HomeScreen(// иначе показываем главный экран
+          currentUserId: _userId!,// передаём uid
+          onSignOut: () async {// обработчик выхода
+            await AuthService.signOut();// выходим из supabase.auth
+            if (mounted) {
+              setState(() => _userId = null); // возвращаемся на экран входа
+            }
           },
-          themeController: _theme, // передаём контроллер темы для быстрого переключения в ui
+          themeController: _theme,// прокидываем контроллер темы
         ),
-        routes: {'/photo': (_) => const PhotoViewScreen()},  // регистрируем именованный маршрут на экран просмотра фото
+        routes: {
+          '/photo': (_) => const PhotoViewScreen(),// маршрут просмотра фото
+        },
       ),
     );
   }
 }
-class LoginScreen extends StatefulWidget {  // экран входа — есть внутреннее состояние (поля ввода и загрузка)
-  final ValueChanged<String> onSignedIn; // final — внешний колбэк, который должен быть неизменным после создания виджета
-  const LoginScreen({super.key, required this.onSignedIn}); // конструктор, onSignedIn обязателен, так как без него нельзя продолжить навигацию
+
+class LoginScreen extends StatefulWidget {
+  final ValueChanged<String> onSignedIn;// сообщает uid при успешном логине
+  const LoginScreen({super.key, required this.onSignedIn});
+
   @override
-  State<LoginScreen> createState() => _LoginScreenState(); // создаём состояние экрана входа
+  State<LoginScreen> createState() => _LoginScreenState();
 }
-class _LoginScreenState extends State<LoginScreen> { // состояние экрана логина
-  final loginCtrl = TextEditingController();  // final — контроллер ввода логина создаётся один раз на жизнь стейта
-  final passCtrl = TextEditingController();// final — контроллер ввода пароля также постоянный в рамках этого состояния
-  bool loading = false;  // флаг показывает, идёт ли попытка входа
-  String? error;  // текст ошибки, если вход не удался
-  Future<void> _doLogin() async {  // приватный метод — обработчик кнопки "войти"
-    setState(() { // перед началом запроса обновляем состояние
-      loading = true; // показываем индикатор загрузки
-      error = null; // сбрасываем прежнюю ошибку
+
+class _LoginScreenState extends State<LoginScreen> {
+  final loginCtrl = TextEditingController();// логин или email
+  final passCtrl = TextEditingController();// пароль
+  final otpCtrl = TextEditingController();// код 2FA
+
+  bool loading = false;// идёт ли запрос
+  String? error;// текст ошибки
+  _TwoFactorPlan? _plan;// текущий план 2FA
+  bool get _waitingOtp => _plan != null && _plan!.kind != _TwoFactorKind.none;// ждём ли код
+
+  void _reset2FA() {// сброс ожидания кода
+    setState(() {
+      _plan = null;// план очищаем
+      otpCtrl.clear();// поле кода чистим
+      error = null;// ошибки убираем
     });
-    try { // блок try/catch для обработки возможных ошибок сети/базы
-      final userId = await SimpleAuth.signIn(loginCtrl.text, passCtrl.text); // вызываем простой вход и получаем id пользователя или null
-      if (userId != null) {  // если id есть — вход успешен
-        await SimpleAuth.setCurrentUserId(userId); // сохраняем id локально, чтобы помнить сессию
-        widget.onSignedIn(userId);  // уведомляем родителя, что вход выполнен, переключаем экран
-      } else { // если id не вернулся
-        setState(() => error = 'Неверный логин или пароль');  // показываем сообщение об ошибке
+  }
+
+  Future<void> _startLogin() async {// шаг 1: логин+пароль
+    _reset2FA();// на всякий случай сбрасываем старый план
+    setState(() {
+      loading = true;// включаем индикатор
+      error = null;// очищаем ошибку
+    });
+    try {
+      final plan = await AuthService.signInWithPasswordAndPlan2FA(
+        identifier: loginCtrl.text,// логин или email
+        password: passCtrl.text,// пароль
+      );
+
+      if (plan.kind == _TwoFactorKind.none) {// если 2FA не требуется
+        widget.onSignedIn(plan.userId);// сразу пускаем в приложение
+      } else {// иначе ждём код с почты
+        setState(() {
+          _plan = plan;// сохраняем план
+          // login/password останутся, но будут заблокированы (см. enabled)
+        });
       }
-    } catch (e) { // если что-то пошло не так на уровне запроса
-      setState(() => error = 'Ошибка входа: $e');  // показываем текст ошибки
-    } finally { // код, который выполняется в любом случае
-      if (mounted) setState(() => loading = false);  // если экран ещё на экране — отключаем индикатор загрузки
+    } on AuthException catch (e) {// ошибки авторизации
+      setState(() => error = e.message);
+    } catch (e) {// другие ошибки
+      setState(() => error = 'Ошибка входа: $e');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);// выключаем индикатор
+      }
     }
   }
+
+  Future<void> _confirmOtp() async {// шаг 2: подтверждение кода
+    final plan = _plan;
+    if (plan == null || plan.kind == _TwoFactorKind.none) {
+      return;// если плана нет — ничего не делаем
+    }
+    setState(() {
+      loading = true;// индикатор
+      error = null;// убираем ошибку
+    });
+    try {
+      await AuthService.verifyOtp(
+        plan: plan,// план 2FA
+        code: otpCtrl.text,// введённый код
+      );
+      // После успешного verifyOTP Supabase создаст полноценную сессию.
+      widget.onSignedIn(plan.userId);// пускаем пользователя
+    } on AuthException catch (e) {// неверный/просроченный код
+      setState(() => error = 'Неверный код: ${e.message}');
+    } catch (e) {// другие ошибки
+      setState(() => error = 'Ошибка подтверждения кода: $e');
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);// выключаем индикатор
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold( // строим разметку экрана входа
-    body: Center(  // центрируем содержимое по экрану
-      child: ConstrainedBox( // ограничиваем ширину для приятного вида на широких экранах
-        constraints: const BoxConstraints(maxWidth: 420), // максимум 420 пикселей по ширине
-        child: Padding(  // добавляем отступы
-          padding: const EdgeInsets.all(24),  // равномерный внутренний отступ 24
-          child: Column(mainAxisSize: MainAxisSize.min, children: [ // вертикальная колонка, по высоте занимает минимально возможное
-            const Text('Вход', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), // заголовок экрана входа
-            const SizedBox(height: 16), // вертикальный отступ
-            TextField(controller: loginCtrl, decoration: const InputDecoration(labelText: 'Логин (фамилия+инициалы)')), // поле ввода логина с подписью
-            const SizedBox(height: 8),// отступ
-            TextField(controller: passCtrl, decoration: const InputDecoration(labelText: 'Пароль'), obscureText: true), // поле ввода пароля, скрываем ввод
-            const SizedBox(height: 16), // отступ
-            if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),  // если есть ошибка — показываем её красным текстом
-            const SizedBox(height: 8),// отступ
-            ElevatedButton( // кнопка "Войти"
-              onPressed: loading ? null : _doLogin,  // блокируем кнопку, пока идёт загрузка, иначе вызываем _doLogin
-              child: loading ? const CircularProgressIndicator() : const Text('Войти'),// внутри показываем индикатор или текст
+  Widget build(BuildContext context) {
+    final waitingOtp = _waitingOtp;// локальная копия для удобства
+
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420), // ограничиваем ширину
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Вход',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                // ЛОГИН / EMAIL
+                TextField(
+                  controller: loginCtrl,
+                  enabled: !waitingOtp && !loading, // при ожидании кода блокируем изменение
+                  decoration: const InputDecoration(
+                    labelText: 'Логин или Email',
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // ПАРОЛЬ
+                TextField(
+                  controller: passCtrl,
+                  enabled: !waitingOtp && !loading, // тоже блокируем при 2FA
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Пароль',
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ПОЛЕ ДЛЯ КОДА 2FA
+                if (waitingOtp) ...[
+                  TextField(
+                    controller: otpCtrl,
+                    enabled: !loading,// можно вводить, пока не отправляем
+                    decoration: const InputDecoration(
+                      labelText: 'Код из письма',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Мы отправили код на вашу почту. '
+                        'Введите его, чтобы завершить вход.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+
+                if (error != null)
+                  Text(
+                    error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+
+                const SizedBox(height: 8),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton(
+                      onPressed: loading || waitingOtp
+                          ? null// пока ждём код — не даём заново жать "Войти"
+                          : _startLogin,
+                      child: loading && !waitingOtp
+                          ? const CircularProgressIndicator()
+                          : const Text('Войти'),
+                    ),
+
+                    if (waitingOtp) ...[
+                      ElevatedButton(
+                        onPressed: loading ? null : _confirmOtp,
+                        child: loading
+                            ? const CircularProgressIndicator()
+                            : const Text('Подтвердить'),
+                      ),
+                      TextButton(
+                        onPressed: loading
+                            ? null
+                            : _reset2FA,// сброс процесса 2FA
+                        child: const Text('Отмена'),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ),
-          ]),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
+
+
 class HomeScreen extends StatefulWidget { // главный экран после входа, со стейтом (нужно хранить посты и пользователя)
   final String currentUserId; // final — id текущего пользователя задаётся при создании и не меняется
   final VoidCallback onSignOut;  // final — колбэк выхода, ссылка постоянна
