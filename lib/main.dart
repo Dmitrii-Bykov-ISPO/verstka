@@ -194,7 +194,7 @@ class PostsRepository {  // репозиторий инкапсулирует в
     'Красота то какая! Ляпота!🌅 -  © Казенов Эдуард': ['photo3.jpg'], // если в старых данных встретится такая подпись — подставим эти файлы
     'Поход в лес! 🌳🏔️🌲': ['photo1.jpg', 'photo2.jpg'], // та же идея для других подписей
     'Мой отдых 🌊🌊🌊': ['photo4.jpg', 'photo5.jpg', 'photo21.jpg'], // сопоставление подписи и имён изображений
-    'Красиво, однако!': ['photo6.jpg', 'photo7.jpg', 'photo8.jpg', 'photo9.jpg', 'photo24.jpg', 'photo25.jpg'], // используем как запасной источник, если в post_images нет записей / проблемы с инетом
+    'Красиво, однако!': ['photo6.jpg', 'photo7.jpg', 'photo8.jpg', 'photo9.jpg','photo10.jpg', 'photo11.jpg','photo24.jpg', 'photo25.jpg'], // используем как запасной источник, если в post_images нет записей / проблемы с инетом
   };
   List<String> _publicUrlsOrAssets(List<String> names) => // приватный метод превращает имена файлов в публичные url к бакету постов
   names.map((n) => publicUrl(bucket: postBucketName, objectKey: n)).toList(); // для каждого имени строим публичную ссылку и собираем в список
