@@ -509,13 +509,11 @@ class _MyAppState extends State<MyApp> {
     _userId = widget.initialUserId;// если при старте уже есть пользователь — запоминаем
     _initTheme();// запускаем загрузку сохранённой темы
   }
-
   Future<void> _initTheme() async {// приватный метод загрузки темы
     await _theme.load();// читаем режим из SharedPreferences
     if (!mounted) return;// если виджет уже уничтожен — выходим
     setState(() => _themeReady = true);// отмечаем, что тема готова
   }
-
   @override
   Widget build(BuildContext context) {
     if (!_themeReady) {// пока тема не загрузилась
@@ -524,7 +522,6 @@ class _MyAppState extends State<MyApp> {
         home: Container(color: Colors.white),
       );
     }
-
     return AnimatedBuilder(// AnimatedBuilder слушает изменения темы
       animation: _theme,
       builder: (_, __) => MaterialApp(
@@ -565,25 +562,20 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-
 class LoginScreen extends StatefulWidget {
   final ValueChanged<String> onSignedIn;// сообщает uid при успешном логине
   const LoginScreen({super.key, required this.onSignedIn});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
-
 class _LoginScreenState extends State<LoginScreen> {
   final loginCtrl = TextEditingController();// логин или email
   final passCtrl = TextEditingController();// пароль
   final otpCtrl = TextEditingController();// код 2FA
-
   bool loading = false;// идёт ли запрос
   String? error;// текст ошибки
   _TwoFactorPlan? _plan;// текущий план 2FA
   bool get _waitingOtp => _plan != null && _plan!.kind != _TwoFactorKind.none;// ждём ли код
-
   void _reset2FA() {// сброс ожидания кода
     setState(() {
       _plan = null;// план очищаем
@@ -591,7 +583,6 @@ class _LoginScreenState extends State<LoginScreen> {
       error = null;// ошибки убираем
     });
   }
-
   Future<void> _startLogin() async {// шаг 1: логин+пароль
     _reset2FA();// на всякий случай сбрасываем старый план
     setState(() {
@@ -603,7 +594,6 @@ class _LoginScreenState extends State<LoginScreen> {
         identifier: loginCtrl.text,// логин или email
         password: passCtrl.text,// пароль
       );
-
       if (plan.kind == _TwoFactorKind.none) {// если 2FA не требуется
         widget.onSignedIn(plan.userId);// сразу пускаем в приложение
       } else {// иначе ждём код с почты
@@ -622,7 +612,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-
   Future<void> _confirmOtp() async {// шаг 2: подтверждение кода
     final plan = _plan;
     if (plan == null || plan.kind == _TwoFactorKind.none) {
@@ -649,11 +638,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     final waitingOtp = _waitingOtp;// локальная копия для удобства
-
     return Scaffold(
       body: Center(
         child: ConstrainedBox(
@@ -677,7 +664,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-
                 // ПАРОЛЬ
                 TextField(
                   controller: passCtrl,
@@ -688,7 +674,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
                 // ПОЛЕ ДЛЯ КОДА 2FA
                 if (waitingOtp) ...[
                   TextField(
@@ -709,15 +694,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                 ],
-
                 if (error != null)
                   Text(
                     error!,
                     style: const TextStyle(color: Colors.red),
                   ),
-
                 const SizedBox(height: 8),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -754,7 +736,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
 class HomeScreen extends StatefulWidget { // главный экран после входа, со стейтом (нужно хранить посты и пользователя)
   final String currentUserId; // final — id текущего пользователя задаётся при создании и не меняется
   final VoidCallback onSignOut;  // final — колбэк выхода, ссылка постоянна
@@ -763,7 +744,6 @@ class HomeScreen extends StatefulWidget { // главный экран посл�
   @override
   State<HomeScreen> createState() => _HomeScreenState(); // создаём состояние экрана
 }
-
 class _HomeScreenState extends State<HomeScreen> { // состояние главного экрана
   late final PostsRepository repo; // late final — создаём репозиторий один раз в initState, ссылка не меняется
   List<PostModel> posts = const []; // список постов, изначально пустой неизменяемый список
@@ -777,7 +757,6 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
     repo = PostsRepository(supabase); // создаём репозиторий, передаём клиент supabase
     _loadAll(); // запускаем загрузку данных (пользователь и посты)
   }
-
   Future<void> _loadAll() async { // приватный метод загружает пользователя и посты
     setState(() => loading = true);  // включаем индикатор загрузки
     try { // перехватываем возможные ошибки
@@ -801,7 +780,6 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
       if (mounted) setState(() => loading = false);  // выключаем индикатор, если экран ещё смонтирован
     }
   }
-
   String _timeAgo(DateTime dt) {  // преобразует дату создания поста в "н минут/часов/дней назад"
     final d = DateTime.now().difference(dt);  // разница между текущим временем и датой поста
     return d.inMinutes < 60  // если меньше часа
@@ -810,7 +788,6 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
         ? '${d.inHours} часов назад'// показываем часы
         : '${d.inDays} дн. назад';  // иначе показываем дни
   }
-
   String _greeting(UserModel? u) { // формирует приветствие в шапке по времени суток и имени пользователя
     final name = (u?.fullName ?? '').trim();// берём имя пользователя или пустую строку
     final h = DateTime.now().hour; // текущий час
@@ -823,14 +800,11 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
         : 'Доброй ночи';
     return name.isEmpty ? 'Здравствуйте!' : '$g, $name!';// если имени нет — нейтральное приветствие, иначе с именем
   }
-
   void _goHome(BuildContext context) => Navigator.of(context).popUntil((route) => route.isFirst);// возвращаемся на корневой экран, закрывая вложенные
   void _stub(BuildContext ctx, String msg) => ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msg))); // показываем временную заглушку через снекбар
-
   void _openEvents() { // открыть экран событий
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EventsScreen()));
   }
-
   @override
   Widget build(BuildContext context) {// строим визуальную часть главного экрана
     final list = loading// если идёт загрузка
@@ -884,7 +858,6 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
         const SizedBox(height: 80),// нижний отступ, чтобы контент не прятался за нижней панелью
       ],
     );
-
     return Scaffold(// каркас экрана с app-body и нижней панелью
       body: SafeArea(// контент внутри безопасной области (без вырезов и статус-бара)
         child: Column(// вертикальная колонка
@@ -918,7 +891,6 @@ class _HomeScreenState extends State<HomeScreen> { // состояние гла�
     );
   }
 }
-
 class AppHeader extends StatelessWidget {// виджет шапки (без состояния), показывает приветствие и аватар
   final String greeting; // "Добрый день, ФИО!" + final — текст приветствия задаётся снаружи и не меняется
   final String? currentUserLogin; // для avatars/<login>.jpg  + final — логин пользователя может быть null, используется для поиска аватара по умолчанию
@@ -933,7 +905,6 @@ class AppHeader extends StatelessWidget {// виджет шапки (без со
     required this.onToggleTheme,// обязательные параметр
     required this.onSignOut,// обязательные параметр
   });
-
   ImageProvider _resolveAvatar() {// внутренний метод определяет, откуда грузить картинку аватара
     if ((currentUserAvatarUrl?.isHttpUrl ?? false)) {// если передан абсолютный url http/https
       return NetworkImage(currentUserAvatarUrl!);// грузим из сети по прямой ссылке
@@ -946,7 +917,6 @@ class AppHeader extends StatelessWidget {// виджет шапки (без со
         ? NetworkImage(publicUrl(bucket: avatarsBucketName, objectKey: '$login.jpg')) // пробуем дефолтный файл <логин>.jpg
         : const AssetImage('assets/profile0.jpg'); // иначе — локальный ассет-заглушка
   }
-
   @override
   Widget build(BuildContext context) { // рисуем шапку
     final avatar = _resolveAvatar(); // получаем источник картинки для аватара
@@ -971,13 +941,11 @@ class AppHeader extends StatelessWidget {// виджет шапки (без со
     );
   }
 }
-
 class InfoCard extends StatelessWidget { // простая карточка с иконкой и заголовком
   final IconData icon;  // final потому что иконка задаётся при создании и не меняется
   final Color iconColor; // final потому что цвет иконки задаётся при создании и не меняется
   final String title;  // final потому что заголовок задаётся при создании и не меняется
   const InfoCard({super.key, required this.icon, required this.iconColor, required this.title});// конструктор с обязательными параметрами
-
   @override
   Widget build(BuildContext context) => Container(// корневой контейнер карточки
     padding: const EdgeInsets.all(16),// внутренние отступы
@@ -990,7 +958,6 @@ class InfoCard extends StatelessWidget { // простая карточка с �
     ]),
   );
 }
-
 class PostCard extends StatelessWidget { // карточка отдельного поста
   final String profileAsset; // URL/asset — аватар АВТОРА ПОСТА + final потому что источник аватара задаётся при создании и не меняется
   final String name; // ФИО автора + final потому что имя автора фиксируется при создании
@@ -1005,7 +972,6 @@ class PostCard extends StatelessWidget { // карточка отдельног�
     required this.caption, // обязательные параметры
     required this.photos, // обязательные параметры
   });
-
   static Widget buildFromData({ // удобная фабрика для создания PostCard
     required BuildContext context, // контекст нужен для навигации при тапе
     required String profileAsset, // источник аватара
@@ -1015,11 +981,9 @@ class PostCard extends StatelessWidget { // карточка отдельног�
     required List<String> photos, // список картинок
   }) =>
       PostCard(profileAsset: profileAsset, name: name, time: time, caption: caption, photos: photos); // возвращаем инстанс PostCard
-
   bool _isUrl(String p) => p.isHttpUrl;  // утилита: является ли строка http/https url
   void _openPhoto(BuildContext context, String p) =>  // открывает экран просмотра фото
   Navigator.of(context).push(MaterialPageRoute(builder: (_) => PhotoViewScreen(imageAsset: p)));  // пушим новый маршрут с PhotoViewScreen
-
   Widget _img(BuildContext context, String p, {BorderRadius? r}) {  // строим виджет картинки с возможностью тапнуть
     final w = _isUrl(p) ? Image.network(p, fit: BoxFit.cover) : Image.asset(p, fit: BoxFit.cover); // если url — грузим из сети, иначе — из ассетов
     return GestureDetector(// ловим тап по картинке
@@ -1027,7 +991,6 @@ class PostCard extends StatelessWidget { // карточка отдельног�
       child: ClipRRect(borderRadius: r ?? BorderRadius.circular(16), child: w), // скругляем углы и вставляем изображение
     );
   }
-
   // лэйаут фоток
   Widget _photos(BuildContext context) {// раскладка фото внутри карточки
     const gap = 8.0; // отступ между изображениями
@@ -1061,7 +1024,6 @@ class PostCard extends StatelessWidget { // карточка отдельног�
         ]),
       );
     }
-    // 4+
     return GridView.builder( // если 4+ фото — рисуем сетку
       physics: const NeverScrollableScrollPhysics(), // у сетки отключаем скролл (прокручивает общий список)
       shrinkWrap: true, // занимаем высоту по контенту
@@ -1075,7 +1037,6 @@ class PostCard extends StatelessWidget { // карточка отдельног�
       itemBuilder: (context, i) => _img(context, photos[i], r: BorderRadius.circular(10)), // каждая ячейка — картинка со скруглением
     );
   }
-
   @override
   Widget build(BuildContext context) { // собираем карточку поста
     final avatar = _isUrl(profileAsset) ? NetworkImage(profileAsset) : AssetImage(profileAsset) as ImageProvider; // источник картинки для аватара автора
@@ -1111,9 +1072,7 @@ class PhotoViewScreen extends StatelessWidget { // экран просмотра
   final String? imageAsset; // путь/ссылка на изображение (optional)
   final Uint8List? imageBytes; //bytes для предпросмотра до загрузки
   const PhotoViewScreen({super.key, this.imageAsset, this.imageBytes}); // конструктор принимает опциональные параметры
-
   bool get _hasUrl => (imageAsset ?? '').isHttpUrl || (imageAsset != null && imageAsset!.isNotEmpty);
-
   @override
   Widget build(BuildContext context) { // строим интерфейс просмотра
     final child = Builder(builder: (_) {
@@ -1126,7 +1085,6 @@ class PhotoViewScreen extends StatelessWidget { // экран просмотра
       final isUrl = (imageAsset ?? '').isHttpUrl;// проверяем, является ли строка http/https url
       return Center(child: InteractiveViewer(child: isUrl ? Image.network(imageAsset!, fit: BoxFit.contain) : Image.asset(imageAsset!, fit: BoxFit.contain))); // иначе показываем картинку с возможностью зума
     });
-
     return Scaffold( // каркас экрана
       backgroundColor: Colors.black, // тёмный фон для фото
       appBar: AppBar( //только кнопка "Назад" через AppBar; без "Домой"
@@ -1142,13 +1100,11 @@ class PhotoViewScreen extends StatelessWidget { // экран просмотра
     );
   }
 }
-
 class EventsScreen extends StatefulWidget { // экран событий
   const EventsScreen({super.key}); // конструктор без параметров
   @override
   State<EventsScreen> createState() => _EventsScreenState(); // состояние экрана
 }
-
 class _EventsScreenState extends State<EventsScreen> {
   late final EventsRepository repo; // репозиторий событий
   bool asCalendar = false; // режим отображения: список/календарь
@@ -1156,14 +1112,12 @@ class _EventsScreenState extends State<EventsScreen> {
   List<EventModel> events = []; // события, загруженные из БД
   bool loading = true; // флаг загрузки
   String? error; // текст ошибки
-
   @override
   void initState() {
     super.initState(); // базовая инициализация
     repo = EventsRepository(supabase); // создаём репозиторий
     _load(); // первая загрузка
   }
-
   Future<void> _load() async { // загрузка событий
     setState(() { loading = true; error = null; }); // включаем индикатор, сбрасываем ошибку
     try {
@@ -1182,7 +1136,6 @@ class _EventsScreenState extends State<EventsScreen> {
       if (mounted) setState(() => loading = false); // выключаем индикатор
     }
   }
-
   Future<void> _join(String id) async { // записаться
     try {
       await repo.joinEvent(id); // пишем в БД
@@ -1194,7 +1147,6 @@ class _EventsScreenState extends State<EventsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка записи: $e')));
     }
   }
-
   Future<void> _leave(String id) async { // отказаться
     try {
       await repo.leaveEvent(id); // удаляем запись
@@ -1206,7 +1158,6 @@ class _EventsScreenState extends State<EventsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка отказа: $e')));
     }
   }
-
   Widget _modeSwitch() => Row( // переключатель режимов
     mainAxisAlignment: MainAxisAlignment.end, // прижимаем вправо
     children: [
@@ -1221,7 +1172,6 @@ class _EventsScreenState extends State<EventsScreen> {
       const Text('Календарь'), // подпись
     ],
   );
-
   @override
   Widget build(BuildContext context) {
     final body = loading // если идёт загрузка
@@ -1231,7 +1181,6 @@ class _EventsScreenState extends State<EventsScreen> {
         : asCalendar // если режим календаря
         ? _calendar() // показываем календарь
         : _list(); // иначе список
-
     return Scaffold(
       appBar: AppBar(title: const Text('События')), // заголовок
       body: Padding( // контент с отступами
@@ -1250,7 +1199,6 @@ class _EventsScreenState extends State<EventsScreen> {
       ),
     );
   }
-
   Widget _list() => ListView.separated( // список событий
     itemCount: events.length, // количество
     separatorBuilder: (_, __) => const SizedBox(height: 8), // отступы
@@ -1261,7 +1209,6 @@ class _EventsScreenState extends State<EventsScreen> {
       onOpen: () => _openDetails(events[i]), // открыть детали
     ),
   );
-
   Widget _calendar() { // вид календаря
     // группируем события по датам
     final byDay = <DateTime, List<EventModel>>{}; // словарь дата -> список событий
@@ -1269,10 +1216,8 @@ class _EventsScreenState extends State<EventsScreen> {
       final d = DateTime(e.startAt.year, e.startAt.month, e.startAt.day); // только дата
       byDay.putIfAbsent(d, () => []).add(e); // добавляем в список дня
     }
-
     final selectedDay = DateTime(focusedDay.year, focusedDay.month, focusedDay.day); // нормализованная выбранная дата
     final ofDay = byDay[selectedDay] ?? const <EventModel>[]; // события конкретного дня
-
     return Column(
       children: [
         TableCalendar<EventModel> ( // сам календарь
@@ -1307,11 +1252,9 @@ class _EventsScreenState extends State<EventsScreen> {
       ],
     );
   }
-
   void _openDetails(EventModel e) { // открыть экран деталей
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventDetailsScreen(event: e)));
   }
-
   Future<void> _openCreateEvent() async { // открыть форму создания
     final created = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const CreateEventScreen()));
     if (created == true) { // если вернулись с флагом "создано"
@@ -1325,7 +1268,6 @@ class EventTile extends StatelessWidget { // карточка события в 
   final VoidCallback onLeave; // обработчик "отказаться"
   final VoidCallback onOpen; // обработчик "детали"
   const EventTile({super.key, required this.e, required this.onJoin, required this.onLeave, required this.onOpen});
-
   static String _fmt(DateTime dt) { // формат "дд.мм чч:мм"
     final d = dt.day.toString().padLeft(2,'0'); // день
     final m = dt.month.toString().padLeft(2,'0'); // месяц
@@ -1333,14 +1275,12 @@ class EventTile extends StatelessWidget { // карточка события в 
     final mm = dt.minute.toString().padLeft(2,'0'); // минуты
     return '$d.$m $hh:$mm'; // итог
   }
-
   @override
   Widget build(BuildContext context) {
     final started = DateTime.now().isAfter(e.startAt); // уже началось?
     final canLeave = !started && !e.iAmOwner && e.iAmJoined; // можно отказаться?
     final canJoin = !started && !e.iAmJoined; // можно записаться?
     final cover = e.coverUrl; // обложка
-
     // мини-превью обложки: фиксированное соотношение 1:1 (квадрат) и ClipRRect — чтобы не растягивалось
     final coverWidget = cover != null
         ? GestureDetector( // по тапу открываем на весь экран
@@ -1354,7 +1294,6 @@ class EventTile extends StatelessWidget { // карточка события в 
       ),
     )
         : const Icon(Icons.event, size: 48); // иконка по умолчанию
-
     return InkWell( // кликабельная карточка
       onTap: onOpen, // открываем детали
       child: Container(
@@ -1391,11 +1330,9 @@ class EventTile extends StatelessWidget { // карточка события в 
     );
   }
 }
-
 class EventDetailsScreen extends StatelessWidget { // экран деталей события
   final EventModel event; // событие
   const EventDetailsScreen({super.key, required this.event}); // конструктор
-
   @override
   Widget build(BuildContext context) {
     final cover = event.coverUrl; // ссылка на обложку
@@ -1435,13 +1372,11 @@ class EventDetailsScreen extends StatelessWidget { // экран деталей 
     );
   }
 }
-
 class CreateEventScreen extends StatefulWidget { // экран создания события
   const CreateEventScreen({super.key}); // конструктор
   @override
   State<CreateEventScreen> createState() => _CreateEventScreenState(); // состояние
 }
-
 class _CreateEventScreenState extends State<CreateEventScreen> {
   final titleCtrl = TextEditingController(); // заголовок
   final descCtrl = TextEditingController(); // описание
@@ -1452,22 +1387,17 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   bool loading = false; // индикатор
   String? error; // ошибка
   late final EventsRepository repo; // репозиторий
-
   Uint8List? _pickedBytes; // байты выбранного файла (web и mobile)
   String? _pickedName; // исходное имя файла (для расширения/превью)
-
   @override
   void initState() {
     super.initState(); // базовая инициализация
     repo = EventsRepository(supabase); // создаём репозиторий
   }
-
-  // утилита: является ли выбранный файл картинкой (по расширению)
-  bool get _pickedIsImage {
+  bool get _pickedIsImage {  // утилита: является ли выбранный файл картинкой (по расширению)
     final name = (_pickedName ?? '').toLowerCase();
     return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.gif') || name.endsWith('.webp');
   }
-
   // выбрать файл в любом формате
   Future<void> _pickFile() async { // диалог выбора
     final res = await FilePicker.platform.pickFiles( // открываем системный пикер
@@ -1477,7 +1407,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     );
     if (res == null || res.files.isEmpty) return; // пользователь отменил
     final f = res.files.single; // выбранный файл
-
     Uint8List? bytes = f.bytes; // web — уже здесь
     if (bytes == null && f.path != null && !kIsWeb) { // mobile/desktop — читаем из пути
       bytes = await File(f.path!).readAsBytes();
@@ -1488,47 +1417,34 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       }
       return;
     }
-
     setState(() {
       _pickedBytes = bytes; // сохраняем байты
       _pickedName = f.name; // имя файла (для расширения и отображения)
       // НЕ заполняем imageCtrl — это только после реальной загрузки в бакет (ниже)
     });
-  }
-
-  //  загрузить выбранный файл в бакет и подставить objectKey в форму
+  }  //  загрузить выбранный файл в бакет и подставить objectKey в форму
   Future<void> _uploadPickedFile() async {
     if (_pickedBytes == null) { // если файл не выбран
       await _pickFile(); // предлагаем выбрать
       if (_pickedBytes == null) return; // опять нет — выходим
     }
     setState(() { loading = true; error = null; }); // индикатор
-
-    try {
-      // вытаскиваем расширение из имени, по умолчанию bin
+    try {  // вытаскиваем расширение из имени, по умолчанию bin
       String ext = 'bin';
       final name = (_pickedName ?? '').trim();
       final dot = name.lastIndexOf('.');
       if (dot > 0 && dot < name.length - 1) {
         ext = name.substring(dot + 1).toLowerCase();
-      }
-
-      // формируем уникальный objectKey: <userId>/<timestamp>.<ext>
+      }  // формируем уникальный objectKey: <userId>/<timestamp>.<ext>
       final uid = supabase.auth.currentUser?.id ?? 'anon';
       final objectKey = '$uid/${DateTime.now().millisecondsSinceEpoch}.$ext'; // относительный путь внутри бакета
-
-      // загружаем в storage (upsert разрешаем — чтобы можно было перезалить при одинаковом ключе)
-      await supabase.storage
+      await supabase.storage// загружаем в storage (upsert разрешаем — чтобы можно было перезалить при одинаковом ключе)
           .from(eventImagesBucketName)
           .uploadBinary(objectKey, _pickedBytes!,
           fileOptions: const FileOptions(upsert: true)); // contentType можно не указывать — Supabase сам попытается определить
-
-      // кладём путь в поле формы и рисуем предпросмотр
-      setState(() {
+      setState(() {// кладём путь в поле формы и рисуем предпросмотр
         imageCtrl.text = objectKey; // теперь этот путь сохранится в events.image_path
-      });
-
-      // подсказка пользователю
+      });  // подсказка пользователю
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Картинка загружена')));
     } catch (e) {
@@ -1537,10 +1453,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       if (mounted) setState(() => loading = false); // выключаем индикатор
     }
   }
-
-  //  локальная проверка валидности дат (строго начало < окончание)
-  bool get _datesValid => endAt.isAfter(startAt);
-
+  bool get _datesValid => endAt.isAfter(startAt);  //  локальная проверка валидности дат (строго начало < окончание)
   Future<void> _submit() async { // отправка формы
     setState(() { loading = true; error = null; }); // включаем индикатор
     try {
@@ -1562,13 +1475,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       if (mounted) setState(() => loading = false); // выключаем индикатор
     }
   }
-
-  // виджет мини-превью как в списках событий
-  Widget _asListPreview() {
+  Widget _asListPreview() {  // виджет мини-превью как в списках событий
     final cover = imageCtrl.text.trim().isNotEmpty
         ? publicUrl(bucket: eventImagesBucketName, objectKey: imageCtrl.text.trim())
         : null;
-
     final fake = EventModel( // собираем временную модель для превью
       id: 'preview',
       title: (titleCtrl.text.isEmpty ? 'Название события' : titleCtrl.text),
@@ -1583,7 +1493,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       iAmJoined: false,
       iAmOwner: false,
     );
-
     return IgnorePointer( // чтобы превью не кликалось (показываем вид)
       ignoring: true,
       child: EventTile(
@@ -1594,14 +1503,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       ),
     );
   }
-
-  //  полноэкранное открытие выбранной (ещё не загруженной) картинки
-  void _openPickedFull() {
+  void _openPickedFull() {  //  полноэкранное открытие выбранной (ещё не загруженной) картинки
     if (_pickedBytes != null && _pickedIsImage) {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => PhotoViewScreen(imageBytes: _pickedBytes)));
     }
   }
-
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Новое событие')), // заголовок
@@ -1639,9 +1545,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             label: const Text('Загрузить в бакет'),
             onPressed: loading ? null : _uploadPickedFile,
           ),
-        ]),
-
-        // предпросмотр локально выбранного файла (до загрузки): если изображение — покажем картинку, иначе — иконку файла
+        ]),    // предпросмотр локально выбранного файла (до загрузки): если изображение — покажем картинку, иначе — иконку файла
         if (_pickedBytes != null) ...[
           const SizedBox(height: 12),
           Text('Предпросмотр выбранного файла (до загрузки):', style: Theme.of(context).textTheme.bodySmall),
@@ -1665,9 +1569,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               ),
             ),
           ),
-        ],
-
-        // предпросмотр загруженной обложки (через публичный URL)
+        ],// предпросмотр загруженной обложки (через публичный URL)
         if (imageCtrl.text.trim().isNotEmpty) ...[
           const SizedBox(height: 12),
           Text('Загруженная обложка (публичный URL):', style: Theme.of(context).textTheme.bodySmall),
@@ -1689,15 +1591,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             ),
           ),
         ],
-
-        const SizedBox(height: 16),
-        // мини-превью "как карточка в списке событий"
+        const SizedBox(height: 16),// мини-превью "как карточка в списке событий"
         Text('Как это будет выглядеть в списке событий:', style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 8),
         _asListPreview(),
-
-        const SizedBox(height: 12),
-        // выбор дат/времени простыми кнопками (можно заменить на любой date/time picker)
+        const SizedBox(height: 12),// выбор дат/времени простыми кнопками (можно заменить на любой date/time picker)
         Row(children: [
           Expanded(child: Text('Начало: ${EventTile._fmt(startAt)}')), // показываем выбранное начало
           TextButton(
@@ -1751,17 +1649,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             },
             child: const Text('Время'),
           ),
-        ]),
-
-        // подсказка валидности дат (UI)
+        ]),   // подсказка валидности дат (UI)
         if (!_datesValid) ...[
           const SizedBox(height: 6),
-          const Text(
-            '⚠️ Дата/время окончания должны быть ПОЗЖЕ даты/времени начала',
-            style: TextStyle(color: Colors.red),
+          const Text( '⚠️ Дата/время окончания должны быть ПОЗЖЕ даты/времени начала', style: TextStyle(color: Colors.red),
           ),
         ],
-
         const SizedBox(height: 12),
         if (error != null) Text(error!, style: const TextStyle(color: Colors.red)), // показываем ошибку
         const SizedBox(height: 8),
