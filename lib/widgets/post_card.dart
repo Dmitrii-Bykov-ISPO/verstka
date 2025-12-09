@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart'; // базовые виджеты Flutter
 import 'package:ui_example/core/app_services.dart'; // расширение StringX (isHttpUrl) и другие сервисы
 import 'package:ui_example/features/common/photo_view_screen.dart'; // экран просмотра фото на весь экран
@@ -45,7 +46,28 @@ class PostCard extends StatelessWidget { // карточка отдельног�
 
   Widget _img(BuildContext context, String p, {BorderRadius? r}) { // вспомогательный виджет одной картинки
     final w = _isUrl(p) // смотрим, URL это или локальный asset
-        ? Image.network(p, fit: BoxFit.cover) // если URL — грузим из сети
+        ? CachedNetworkImage(// если это инет ссылка - кешированной сетевое изображение
+      imageUrl: p,//ссылка на картинка
+      imageBuilder: (context, imageProvider) => Container( //контейнер с картинкой
+        decoration: BoxDecoration(
+          image: DecorationImage(
+              image: imageProvider,
+              fit: BoxFit.cover/*,
+              colorFilter:
+              ColorFilter.mode(Colors.red, BlendMode.colorBurn)*/ //Если хочеца красного
+          ),
+        ),
+      ),
+      progressIndicatorBuilder: (context, url, downloadProgress) => //для отображения прогресса загрузки
+          CircularProgressIndicator(
+              value: downloadProgress.progress,
+              constraints:  BoxConstraints( //должен ограничить размеры круга загрузки
+                  maxHeight: 50,
+                  maxWidth: 50
+              )
+          ),
+      errorWidget: (context, url, error) => Icon(Icons.error),
+    )    // если URL — грузим из сети
         : Image.asset(p, fit: BoxFit.cover); // иначе берём локальный asset
     return GestureDetector( // оборачиваем картинку в GestureDetector для обработки тапов
       onTap: () => _openPhoto(context, p), // при нажатии открываем fullscreen просмотр

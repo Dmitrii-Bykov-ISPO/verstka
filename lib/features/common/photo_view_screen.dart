@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart'; // UI
 import 'dart:typed_data'; // Uint8List
 import '../../core/app_services.dart'; // StringX (isHttpUrl)
@@ -43,9 +44,22 @@ class PhotoViewScreen extends StatelessWidget { // экран просмотра
       return Center( // центрируем
         child: InteractiveViewer( // снова зум/перемещение
           child: isUrl
-              ? Image.network( // если это ссылка — грузим по сети
-            imageAsset!, // URL картинки
-            fit: BoxFit.contain, // вписываем
+              ? CachedNetworkImage( // если это инет ссылка - кешированной сетевое изображение
+            imageUrl: imageAsset!, //ссылка на картинка
+            imageBuilder: (context, imageProvider) => Container( //контейнер с картинкой
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                    image: imageProvider,
+                    fit: BoxFit.cover/*,
+                  colorFilter:
+                  ColorFilter.mode(Colors.red, BlendMode.colorBurn)),*/ //Если хочеца красного
+            ),
+            ),
+            ),
+            //placeholder: (context, url) => CircularProgressIndicator(),
+            progressIndicatorBuilder: (context, url, downloadProgress) => //для отображения прогресса загрузки
+                CircularProgressIndicator(value: downloadProgress.progress),
+            errorWidget: (context, url, error) => Icon(Icons.error),
           )
               : Image.asset( // иначе подразумеваем, что это asset
             imageAsset!, // путь к asset

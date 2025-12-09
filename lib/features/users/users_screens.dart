@@ -61,11 +61,11 @@ class _UsersScreenState extends State<UsersScreen> { // состояние сп�
       if (mounted) setState(() => loading = false); // выключаем индикатор, если виджет жив
     }
   }
-
   ImageProvider _avatarFor(UserModel u) { // аватар для пользователя
     final path = (u.avatarUrl ?? '').trim(); // берём путь и обрезаем пробелы
     if (path.isNotEmpty) { // если путь не пустой
-      return NetworkImage( // грузим картинку по сети
+      return
+        NetworkImage( // грузим картинку по сети
         publicUrl(
           bucket: avatarsBucketName, // используем бакет avatars
           objectKey: path, // относительный путь к файлу
@@ -74,7 +74,6 @@ class _UsersScreenState extends State<UsersScreen> { // состояние сп�
     }
     return const AssetImage('assets/profile0.jpg'); // иначе дефолтная аватарка из assets
   }
-
   void _openUser(UserModel u) { // редактирование пользователя
     Navigator.of(context).push( // открываем новый экран
       MaterialPageRoute(
@@ -86,7 +85,6 @@ class _UsersScreenState extends State<UsersScreen> { // состояние сп�
       ),
     );
   }
-
   Future<void> _openCreateUser() async { // открыть экран создания пользователя
     final created = await Navigator.of(context).push<bool>( // ждём результат с экрана
       MaterialPageRoute(
