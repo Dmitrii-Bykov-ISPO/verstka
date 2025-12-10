@@ -4,6 +4,7 @@ import 'dart:io' show File; // для чтения файла на mobile/deskto
 import 'package:flutter/foundation.dart' show kIsWeb; // чтобы различать web и всё остальное
 import 'package:flutter/material.dart'; // базовый UI toolkit
 import 'package:file_picker/file_picker.dart'; // выбор файлов
+import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // UserAttributes для обновления профиля
 
 import '../../core/app_services.dart'; // supabase, buckets, publicUrl
@@ -109,7 +110,15 @@ class _UsersScreenState extends State<UsersScreen> { // состояние сп�
         style: const TextStyle(color: Colors.red), // красный цвет
       ),
     )
-        : ListView( // если всё ок — список пользователей
+        :
+        Shimmer(
+        duration: Duration(seconds: 3), //Default value
+        color: Colors.white, //Default value
+    colorOpacity: 0, //Default value
+    enabled: true, //Default value
+    direction: ShimmerDirection.fromLTRB(),  //Default Value
+    child:
+    ListView( // если всё ок — список пользователей
       padding: const EdgeInsets.all(16), // отступы вокруг
       children: [
         ...List.generate(users.length, (i) { // генерируем элементы списка по количеству пользователей
@@ -166,7 +175,9 @@ class _UsersScreenState extends State<UsersScreen> { // состояние сп�
           ),
         ),
       ],
-    ));
+    )
+        )
+    );
 
     return Scaffold( // каркас экрана
       appBar: AppBar(

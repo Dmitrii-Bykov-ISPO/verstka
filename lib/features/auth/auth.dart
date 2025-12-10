@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart'; // базовый UI
+import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // auth, User, AuthException
 
 import '../../core/app_services.dart'; // глобальный supabase-клиент и конфиг
@@ -229,7 +230,14 @@ class _LoginScreenState extends State<LoginScreen> { // состояние эк�
   Widget build(BuildContext context) { // сборка экрана логина
     final waitingOtp = _waitingOtp; // локальная копия флага ожидания кода
 
-    return Scaffold(
+    return Shimmer(
+      duration: Duration(seconds: 10), //Default value
+      color: Colors.white, //Default value
+      colorOpacity: 0, //Default value
+      enabled: true, //Default value
+      direction: ShimmerDirection.fromLTRB(),  //Default Value
+      child:
+     Scaffold(
       appBar: AppBar(
         // AppBar, чтобы повесить переключатель темы
         title: const Text('Вход'), // заголовок экрана
@@ -320,6 +328,8 @@ class _LoginScreenState extends State<LoginScreen> { // состояние эк�
           ),
         ),
       ),
+    )
+
     );
   }
 }
